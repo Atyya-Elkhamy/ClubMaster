@@ -15,7 +15,7 @@ export class Review {
   comment: string;
 
   @Prop()
-  response: string; // Restaurant's response to the review
+  response: string; 
 
   @Prop({ type: Types.ObjectId, ref: 'Restaurant' })
   restaurant: Types.ObjectId;

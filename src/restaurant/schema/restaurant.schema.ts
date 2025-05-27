@@ -12,7 +12,7 @@ export class Restaurant {
   address: string;
 
   @Prop()
-  logo: string; // URL to logo image
+  logo: string;
 
   @Prop({ required: true })
   contactInfo: {
@@ -27,8 +27,8 @@ export class Restaurant {
   @Prop([
     {
       day: { type: String, enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] },
-      open: String, // e.g., "09:00"
-      close: String, // e.g., "22:00"
+      open: String, 
+      close: String, 
       isClosed: { type: Boolean, default: false },
     },
   ])
@@ -42,7 +42,7 @@ export class Restaurant {
   @Prop([
     {
       date: Date,
-      reason: String, // e.g., "Public Holiday"
+      reason: String,
       isClosed: { type: Boolean, default: true },
     },
   ])
@@ -79,8 +79,23 @@ export class Restaurant {
     profileViews: number;
     menuViews: number;
   };
+
+  @Prop()
+  priceRange: {
+    min: number;
+    max: number;
+  };
+  getCategory(): 'cheaper' | 'mid' | 'expensive' {
+    if (!this.priceRange || typeof this.priceRange.min !== 'number' || typeof this.priceRange.max !== 'number') {
+      return 'mid';
+    }
+    const avg = (this.priceRange.min + this.priceRange.max) / 2;
+    if (avg < 10) return 'cheaper';
+    if (avg < 30) return 'mid';
+    return 'expensive';
+  }
 }
 
 export const RestaurantSchema = SchemaFactory.createForClass(Restaurant);
 
-RestaurantSchema.index({ name: 'text', description: 'text' }); // Text index for search
+RestaurantSchema.index({ name: 'text', description: 'text' });

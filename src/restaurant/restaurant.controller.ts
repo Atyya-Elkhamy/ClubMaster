@@ -1,11 +1,11 @@
-import { Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post } from '@nestjs/common';
 import { RestaurantService } from './restaurant.service';
 @Controller('restaurant')
 export class RestaurantController {
     constructor(private readonly restaurantService: RestaurantService) {}
     @Post('create')
-    async createRestaurant() {
-        return this.restaurantService.createRestaurant();
+    async createRestaurant(@Body() restaurantData: any) {
+        return this.restaurantService.createRestaurant(restaurantData);
     }
     @Post('find')
     async findRestaurant() {
