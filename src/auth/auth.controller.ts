@@ -8,6 +8,7 @@ import {
   UnauthorizedException,
   HttpStatus,
   HttpCode,
+  Res,
 } from '@nestjs/common';
 import { UsersService } from 'src/users/users.service';
 import { AuthService } from './auth.service';
@@ -18,6 +19,14 @@ import { ForgotPasswordDto } from '../common/dto/auth.dto';
 import { ResetPasswordDto } from '../common/dto/auth.dto';
 import { VerifyOtpDto } from '../common/dto/auth.dto';
 import { BadRequestException } from '@nestjs/common';
+import { Request, Response } from 'express';
+
+interface RequestWithCookies extends Request {
+  cookies: {
+    refresh_token?: string;
+    [key: string]: any;
+  };
+}
 
 @Controller('auth')
 export class AuthController {
@@ -34,39 +43,73 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('local'))
   @Post('login')
-  async login(@Body() loginDto: LoginDto) {
+  async login(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const tokens = await this.authService.login(loginDto);
+    res.cookie('refresh_token', tokens.refresh_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/',
+    });
     return { ...tokens };
   }
 
   @Post('refresh')
-  async refresh(@Req() req: Request) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader?.split(' ')[1];
-    if (!token) {
-      throw new BadRequestException('Missing refresh_token');
+  async refresh(
+    @Req() req: RequestWithCookies,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = req.cookies?.refresh_token;
+    console.log('Refresh token:', refreshToken);
+    if (!refreshToken) {
+      throw new BadRequestException('Missing refresh token');
     }
-    const user = await this.authService.validateRefreshToken(token);
+
+    const user = await this.authService.validateRefreshToken(refreshToken);
     if (!user) {
       throw new UnauthorizedException('Invalid refresh token');
     }
-    const tokens = await this.authService.generateTokens(user);
-    return { user, ...tokens };
+
+    const { access_token, refresh_token: newRefreshToken } =
+      await this.authService.generateTokens(user);
+
+    res.cookie('refresh_token', newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
+
+    return { user, access_token };
   }
 
   // @UseGuards(AuthGuard('jwt'))
   @Post('logout')
-  async logout(@Body() logoutDto: { refresh_token?: string }) {
-    if (!logoutDto?.refresh_token) {
-      throw new BadRequestException('Missing refresh_token');
+  async logout(
+    @Req() req: RequestWithCookies,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = req.cookies?.refresh_token;
+    if (!refreshToken) {
+      throw new BadRequestException('Missing refresh token');
     }
-    const user = await this.authService.validateRefreshToken(
-      logoutDto.refresh_token,
-    );
+    const user = await this.authService.validateRefreshToken(refreshToken);
     if (!user) {
       throw new UnauthorizedException('Invalid refresh token');
     }
     await this.usersService.removeRefreshToken(user._id);
+    res.clearCookie('refresh_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+    });
+
     return { message: 'Logged out successfully' };
   }
 
@@ -87,14 +130,36 @@ export class AuthController {
 
   @Get('google/login')
   @UseGuards(AuthGuard('google'))
-  async googleAuth(@Req() req) {
+  googleAuth() {
     console.log('Google Auth called');
   }
 
   @Get('google/redirect')
   @UseGuards(AuthGuard('google'))
-  googleAuthRedirect(@Req() req) {
+  async googleAuthRedirect(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     console.log('Google Auth Redirect called');
-    return this.authService.googleLogin(req);
+    const { user, accessToken, refreshToken } =
+      await this.authService.googleLogin(req);
+    res.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
+    return (
+      res.redirect(
+        `http://localhost:3000/auth/google-success?access_token=${accessToken}`,
+      ),
+      user
+    );
+  }
+
+  @Get('google-success')
+  success(): Promise<{ message: string }> {
+    return Promise.resolve({ message: 'google loged in success' });
   }
 }

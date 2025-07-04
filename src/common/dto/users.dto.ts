@@ -17,7 +17,8 @@ export class CreateUserDto {
 
   @IsNotEmpty({ message: 'Phone number is required' })
   @Matches(/^(010|011|012|015)\d{8}$/, {
-    message: 'Phone number must be 11 digits and start with 010, 011, 012, or 015',
+    message:
+      'Phone number must be 11 digits and start with 010, 011, 012, or 015',
   })
   phone: string;
 

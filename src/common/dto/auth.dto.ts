@@ -1,5 +1,10 @@
-import { IsEmail, IsNotEmpty, IsString, Length, MinLength } from 'class-validator';
-
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  Length,
+  MinLength,
+} from 'class-validator';
 
 export class LoginDto {
   @IsNotEmpty({ message: 'Email or phone is required' })

@@ -32,6 +32,7 @@ export class CateringProvider {
   isHighlyRecommended: boolean;
 }
 
-export const CateringProviderSchema = SchemaFactory.createForClass(CateringProvider);
+export const CateringProviderSchema =
+  SchemaFactory.createForClass(CateringProvider);
 
 CateringProviderSchema.index({ name: 'text' });

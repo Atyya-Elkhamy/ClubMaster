@@ -14,7 +14,7 @@ import { IUser } from '../common/interfaces/users.interface';
 import * as crypto from 'crypto';
 import { MailService } from '../mail/mail.service';
 import { UserRole } from 'src/users/users.schema';
-
+import { Request } from 'express';
 @Injectable()
 export class AuthService {
   constructor(
@@ -162,7 +162,7 @@ export class AuthService {
     await user.save();
   }
 
-  async googleLogin(@Req() req): Promise<{
+  async googleLogin(@Req() req: Request): Promise<{
     message: string;
     user: IUser | null;
     accessToken?: string;
