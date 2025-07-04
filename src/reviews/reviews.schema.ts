@@ -6,7 +6,7 @@ export type ReviewDocument = Review & Document;
 @Schema({ timestamps: true })
 export class Review {
   @Prop({ required: true })
-  customerId: string; 
+  customerId: string;
 
   @Prop({ required: true, min: 1, max: 5 })
   rating: number;
@@ -15,7 +15,7 @@ export class Review {
   comment: string;
 
   @Prop()
-  response: string; 
+  response: string;
 
   @Prop({ type: Types.ObjectId, ref: 'Restaurant' })
   restaurant: Types.ObjectId;

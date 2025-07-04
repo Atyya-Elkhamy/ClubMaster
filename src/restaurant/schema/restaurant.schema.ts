@@ -3,6 +3,74 @@ import { Document, Types } from 'mongoose';
 
 export type RestaurantDocument = Restaurant & Document;
 
+class ContactInfo {
+  @Prop({ required: true })
+  phone: string;
+
+  @Prop({ required: true })
+  email: string;
+
+  @Prop()
+  website?: string;
+}
+
+class OperatingHour {
+  @Prop({
+    enum: [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ],
+  })
+  day: string;
+
+  @Prop()
+  open: string;
+
+  @Prop()
+  close: string;
+
+  @Prop({ default: false })
+  isClosed: boolean;
+}
+
+class SpecialHour {
+  @Prop()
+  date: Date;
+
+  @Prop()
+  reason: string;
+
+  @Prop({ default: true })
+  isClosed: boolean;
+}
+
+class Analytics {
+  @Prop({ default: 0 })
+  clicks: number;
+
+  @Prop({ default: 0 })
+  promoCodeUsage: number;
+
+  @Prop({ default: 0 })
+  profileViews: number;
+
+  @Prop({ default: 0 })
+  menuViews: number;
+}
+
+class PriceRange {
+  @Prop()
+  min: number;
+
+  @Prop()
+  max: number;
+}
+
 @Schema({ timestamps: true })
 export class Restaurant {
   @Prop({ required: true, index: true })
@@ -14,43 +82,17 @@ export class Restaurant {
   @Prop()
   logo: string;
 
-  @Prop({ required: true })
-  contactInfo: {
-    phone: string;
-    email: string;
-    website?: string;
-  };
+  @Prop({ type: ContactInfo, required: true })
+  contactInfo: ContactInfo;
 
   @Prop()
   description: string;
 
-  @Prop([
-    {
-      day: { type: String, enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] },
-      open: String, 
-      close: String, 
-      isClosed: { type: Boolean, default: false },
-    },
-  ])
-  operatingHours: {
-    day: string;
-    open: string;
-    close: string;
-    isClosed: boolean;
-  }[];
+  @Prop({ type: [OperatingHour] })
+  operatingHours: OperatingHour[];
 
-  @Prop([
-    {
-      date: Date,
-      reason: String,
-      isClosed: { type: Boolean, default: true },
-    },
-  ])
-  specialHours: {
-    date: Date;
-    reason: string;
-    isClosed: boolean;
-  }[];
+  @Prop({ type: [SpecialHour] })
+  specialHours: SpecialHour[];
 
   @Prop([{ type: Types.ObjectId, ref: 'MenuItem' }])
   menuItems: Types.ObjectId[];
@@ -67,26 +109,18 @@ export class Restaurant {
   @Prop({ default: 0 })
   averageRating: number;
 
-  @Prop({
-    clicks: { type: Number, default: 0 },
-    promoCodeUsage: { type: Number, default: 0 },
-    profileViews: { type: Number, default: 0 },
-    menuViews: { type: Number, default: 0 },
-  })
-  analytics: {
-    clicks: number;
-    promoCodeUsage: number;
-    profileViews: number;
-    menuViews: number;
-  };
+  @Prop({ type: Analytics })
+  analytics: Analytics;
 
-  @Prop()
-  priceRange: {
-    min: number;
-    max: number;
-  };
+  @Prop({ type: PriceRange })
+  priceRange: PriceRange;
+
   getCategory(): 'cheaper' | 'mid' | 'expensive' {
-    if (!this.priceRange || typeof this.priceRange.min !== 'number' || typeof this.priceRange.max !== 'number') {
+    if (
+      !this.priceRange ||
+      typeof this.priceRange.min !== 'number' ||
+      typeof this.priceRange.max !== 'number'
+    ) {
       return 'mid';
     }
     const avg = (this.priceRange.min + this.priceRange.max) / 2;

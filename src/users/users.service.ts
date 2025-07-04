@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
@@ -8,14 +8,21 @@ import { IUser } from '../common/interfaces/users.interface';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private readonly userModel: Model<IUser & UserDocument>) { }
+  constructor(
+    @InjectModel(User.name)
+    private readonly userModel: Model<IUser & UserDocument>,
+  ) {}
 
   async findOne(email: string): Promise<IUser | null> {
     return this.userModel.findOne({ email }).exec();
   }
 
-  async createUser(createUserDto: CreateUserDto | CreateGoogleUserDto): Promise<User> {
-    const existingUser = await this.userModel.findOne({ email: createUserDto.email });
+  async createUser(
+    createUserDto: CreateUserDto | CreateGoogleUserDto,
+  ): Promise<User> {
+    const existingUser = await this.userModel.findOne({
+      email: createUserDto.email,
+    });
     if (existingUser) {
       throw new ConflictException('Email already exists');
     }
@@ -35,16 +42,21 @@ export class UsersService {
   }
 
   async findByEmailOrPhone(emailOrPhone: string): Promise<IUser | null> {
-    return this.userModel.findOne({
-      $or: [{ email: emailOrPhone }, { phone: emailOrPhone }],
-    }).exec();
+    return this.userModel
+      .findOne({
+        $or: [{ email: emailOrPhone }, { phone: emailOrPhone }],
+      })
+      .exec();
   }
 
   async findById(userId: string): Promise<IUser | null> {
     return this.userModel.findById(userId);
   }
 
-  async updateRefreshToken(userId: string, refreshToken: string): Promise<void> {
+  async updateRefreshToken(
+    userId: string,
+    refreshToken: string,
+  ): Promise<void> {
     await this.userModel.findByIdAndUpdate(userId, {
       refreshToken: refreshToken,
     });
@@ -54,14 +66,10 @@ export class UsersService {
     await this.userModel.findByIdAndUpdate(userId, { refreshToken: null });
   }
 
-  async updateUserPassword(
-    userId: string,
-    newPassword: string,
-  ): Promise<void> {
+  async updateUserPassword(userId: string, newPassword: string): Promise<void> {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await this.userModel.findByIdAndUpdate(userId, {
       password: hashedPassword,
     });
   }
-
 }

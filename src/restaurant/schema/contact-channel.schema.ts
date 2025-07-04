@@ -5,7 +5,10 @@ export type ContactChannelDocument = ContactChannel & Document;
 
 @Schema({ timestamps: true })
 export class ContactChannel {
-  @Prop({ required: true, enum: ['WhatsApp', 'Facebook Messenger', 'Phone', 'Hotline'] })
+  @Prop({
+    required: true,
+    enum: ['WhatsApp', 'Facebook Messenger', 'Phone', 'Hotline'],
+  })
   type: string;
 
   @Prop({ required: true })
@@ -15,4 +18,5 @@ export class ContactChannel {
   restaurant: Types.ObjectId;
 }
 
-export const ContactChannelSchema = SchemaFactory.createForClass(ContactChannel);
+export const ContactChannelSchema =
+  SchemaFactory.createForClass(ContactChannel);

@@ -1,13 +1,14 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  Req,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException, Req } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
-import { LoginDto, VerifyOtpDto, ForgotPasswordDto, ResetPasswordDto } from '../common/dto/auth.dto';
+import {
+  LoginDto,
+  VerifyOtpDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+} from '../common/dto/auth.dto';
 import { JwtPayload } from '../common/interfaces/auth.interface';
 import { IUser } from '../common/interfaces/users.interface';
 import * as crypto from 'crypto';
@@ -23,27 +24,37 @@ export class AuthService {
     private readonly mailService: MailService,
   ) {}
 
-  async validateUser(emailOrPhone: string, password: string): Promise<IUser | null> {
+  async validateUser(
+    emailOrPhone: string,
+    password: string,
+  ): Promise<IUser | null> {
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailOrPhone);
     const isPhone = /^(010|011|012|015)\d{8}$/.test(emailOrPhone);
     if (!isEmail && !isPhone) {
       throw new UnauthorizedException('Invalid email or phone number');
     }
     const user = await this.usersService.findByEmailOrPhone(emailOrPhone);
-    if (user && await bcrypt.compare(password, user.password)) {
+    if (user && (await bcrypt.compare(password, user.password))) {
       return user;
     }
     return null;
   }
 
-  async login(loginDto: LoginDto): Promise<{ access_token: string; refresh_token: string }> {
-    const user = await this.validateUser(loginDto.emailOrPhone, loginDto.password);
+  async login(
+    loginDto: LoginDto,
+  ): Promise<{ access_token: string; refresh_token: string }> {
+    const user = await this.validateUser(
+      loginDto.emailOrPhone,
+      loginDto.password,
+    );
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
     return this.generateTokens(user);
   }
 
-  async generateTokens(user: IUser): Promise<{ access_token: string; refresh_token: string }> {
+  async generateTokens(
+    user: IUser,
+  ): Promise<{ access_token: string; refresh_token: string }> {
     const payload: JwtPayload = { id: String(user._id), name: user.name };
     const access_token = this.jwtService.sign(payload, {
       secret: this.configService.get<string>('JWT_SECRET'),
@@ -57,7 +68,8 @@ export class AuthService {
     const payload = { id: String(user._id), role: user.role };
     const plainToken = this.jwtService.sign(payload, {
       secret: this.configService.get<string>('JWT_SECRET'),
-      expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRATION') || '7d',
+      expiresIn:
+        this.configService.get<string>('JWT_REFRESH_EXPIRATION') || '7d',
     });
     const hashedToken = await bcrypt.hash(plainToken, 10);
     await this.usersService.updateRefreshToken(String(user._id), hashedToken);
@@ -84,7 +96,9 @@ export class AuthService {
     }
   }
 
-  async refreshToken(user: IUser): Promise<{ access_token: string; refresh_token: string }> {
+  async refreshToken(
+    user: IUser,
+  ): Promise<{ access_token: string; refresh_token: string }> {
     return this.generateTokens(user);
   }
 
@@ -123,7 +137,8 @@ export class AuthService {
 
   async verifyOtp(dto: VerifyOtpDto): Promise<void> {
     const user = await this.usersService.findOne(dto.email);
-    if (!user || user.otp !== dto.otp) throw new UnauthorizedException('Invalid OTP');
+    if (!user || user.otp !== dto.otp)
+      throw new UnauthorizedException('Invalid OTP');
     if (user.otpExpiresAt && user.otpExpiresAt < new Date()) {
       throw new UnauthorizedException('OTP expired');
     }
@@ -135,7 +150,8 @@ export class AuthService {
 
   async resetPassword(dto: ResetPasswordDto): Promise<void> {
     const user = await this.usersService.findOne(dto.email);
-    if (!user || user.otp !== dto.otp) throw new UnauthorizedException('Invalid OTP');
+    if (!user || user.otp !== dto.otp)
+      throw new UnauthorizedException('Invalid OTP');
     if (user.otpExpiresAt && user.otpExpiresAt < new Date()) {
       throw new UnauthorizedException('OTP expired');
     }
@@ -147,7 +163,10 @@ export class AuthService {
   }
 
   async googleLogin(@Req() req): Promise<{
-    message: string; user: IUser | null; accessToken?: string; refreshToken?: string;
+    message: string;
+    user: IUser | null;
+    accessToken?: string;
+    refreshToken?: string;
   }> {
     if (!req.user) return { message: 'No user from Google', user: null };
     const googleUser = req.user as {
@@ -161,12 +180,12 @@ export class AuthService {
     const picture = googleUser.picture || '';
     let user = await this.usersService.findOne(email);
     if (!user) {
-      user = await this.usersService.createUser({
+      user = (await this.usersService.createUser({
         email,
         name,
         picture,
         role: UserRole.CUSTOMER,
-      }) as unknown as IUser;
+      })) as unknown as IUser;
     }
     const { access_token, refresh_token } = await this.generateTokens(user);
     return {
