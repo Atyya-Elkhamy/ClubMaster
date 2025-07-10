@@ -12,7 +12,7 @@ export class ContactChannel {
   type: string;
 
   @Prop({ required: true })
-  value: string; // e.g., phone number, WhatsApp number, FB Messenger link
+  value: string;
 
   @Prop({ type: Types.ObjectId, ref: 'Restaurant' })
   restaurant: Types.ObjectId;

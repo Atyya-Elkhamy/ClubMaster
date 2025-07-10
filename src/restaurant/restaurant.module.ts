@@ -8,6 +8,7 @@ import {
   ContactChannel,
   ContactChannelSchema,
 } from './schema/contact-channel.schema';
+import { PromoCode, PromoCodeSchema } from './schema/promo-code.schema';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import {
       { name: Restaurant.name, schema: RestaurantSchema },
       { name: MenuItem.name, schema: MenuItemSchema },
       { name: ContactChannel.name, schema: ContactChannelSchema },
+      { name: PromoCode.name, schema: PromoCodeSchema },
     ]),
   ],
   controllers: [RestaurantController],
