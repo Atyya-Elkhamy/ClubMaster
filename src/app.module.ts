@@ -8,7 +8,7 @@ import { ProvidersModule } from './providers/providers.module';
 
 @Module({
   imports: [
-    MongooseModule.forRoot('mongodb://localhost:27017/kayrota'),
+    MongooseModule.forRoot('mongodb://localhost:27017/clubmaster'),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',

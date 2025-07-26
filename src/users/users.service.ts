@@ -20,10 +20,19 @@ export class UsersService {
   async createUser(
     createUserDto: CreateUserDto | CreateGoogleUserDto,
   ): Promise<User> {
-    const existingUser = await this.userModel.findOne({
+    let existingPhone = null;
+    if ('phone' in createUserDto && createUserDto.phone) {
+      existingPhone = await this.userModel.findOne({
+        phone: createUserDto.phone,
+      });
+      if (existingPhone) {
+        throw new ConflictException('Phone number already exists');
+      }
+    }
+    const existingEmail = await this.userModel.findOne({
       email: createUserDto.email,
     });
-    if (existingUser) {
+    if (existingEmail) {
       throw new ConflictException('Email already exists');
     }
     let hashedPassword: string | undefined = undefined;

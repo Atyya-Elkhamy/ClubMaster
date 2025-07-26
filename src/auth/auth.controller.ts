@@ -47,12 +47,14 @@ export class AuthController {
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,
   ) {
+    console.log('start loginnnn');
     const tokens = await this.authService.login(loginDto);
+    console.log('Tokens:', tokens);
     res.cookie('refresh_token', tokens.refresh_token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/',
     });
     return { ...tokens };
@@ -63,6 +65,7 @@ export class AuthController {
     @Req() req: RequestWithCookies,
     @Res({ passthrough: true }) res: Response,
   ) {
+    console.log('start login');
     const refreshToken = req.cookies?.refresh_token;
     console.log('Refresh token:', refreshToken);
     if (!refreshToken) {
