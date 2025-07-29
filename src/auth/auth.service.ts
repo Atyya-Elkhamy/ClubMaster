@@ -184,7 +184,7 @@ export class AuthService {
         email,
         name,
         picture,
-        role: UserRole.CUSTOMER,
+        role: UserRole.PARTNER,
       })) as unknown as IUser;
     }
     const { access_token, refresh_token } = await this.generateTokens(user);

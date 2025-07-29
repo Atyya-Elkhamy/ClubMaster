@@ -2,9 +2,11 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from './auth/auth.module';
-import { RestaurantModule } from './restaurant/restaurant.module';
+import { MembershipModule } from './membership/membership.module';
 import { ReviewsModule } from './reviews/reviews.module';
-import { ProvidersModule } from './providers/providers.module';
+import { PaymentsModule } from './payments/payments.module';
+import { UsersModule } from './users/users.module';
+import { StoreModule } from './store/store.module';
 
 @Module({
   imports: [
@@ -14,9 +16,11 @@ import { ProvidersModule } from './providers/providers.module';
       envFilePath: '.env',
     }),
     AuthModule,
-    RestaurantModule,
+    MembershipModule,
     ReviewsModule,
-    ProvidersModule,
+    PaymentsModule,
+    UsersModule,
+    StoreModule,
   ],
 })
 export class AppModule {}

@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsEnum,
   Matches,
+  IsMongoId,
 } from 'class-validator';
 import { UserRole } from '../../users/users.schema';
 
@@ -27,7 +28,7 @@ export class CreateUserDto {
   password: string;
 
   @IsOptional()
-  @IsEnum(UserRole, { message: 'Role must be either customer or restaurant' })
+  @IsEnum(UserRole, { message: 'Role must be either partner or admin' })
   role?: UserRole;
 
   @IsOptional()
@@ -35,6 +36,10 @@ export class CreateUserDto {
 
   @IsOptional()
   refreshToken?: string | null;
+
+  @IsOptional()
+  @IsMongoId({ message: 'Invalid membership ID' })
+  activeMembership?: string;
 }
 
 export class CreateGoogleUserDto {
@@ -48,9 +53,13 @@ export class CreateGoogleUserDto {
   picture?: string;
 
   @IsOptional()
-  @IsEnum(UserRole, { message: 'Role must be either customer or restaurant' })
+  @IsEnum(UserRole, { message: 'Role must be either partner or admin' })
   role?: UserRole;
 
   @IsOptional()
   refreshToken?: string | null;
+
+  @IsOptional()
+  @IsMongoId({ message: 'Invalid membership ID' })
+  activeMembership?: string;
 }

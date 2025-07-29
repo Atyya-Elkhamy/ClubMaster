@@ -1,9 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
+import { MembershipType } from '../membership/schema/membership.schema';
 
 export enum UserRole {
-  CUSTOMER = 'customer',
-  RESTAURANT = 'restaurant',
+  PARTNER = 'partner',
   ADMIN = 'admin',
 }
 
@@ -23,7 +23,7 @@ export class User {
   @Prop({ required: false, unique: true, sparse: true })
   phone?: string;
 
-  @Prop({ enum: UserRole, default: UserRole.CUSTOMER })
+  @Prop({ enum: UserRole, default: UserRole.PARTNER })
   role: UserRole;
 
   @Prop({ default: null })
@@ -37,6 +37,10 @@ export class User {
 
   @Prop({ required: false })
   picture?: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'MembershipType', default: null })
+  activeMembership?: Types.ObjectId;
+
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
