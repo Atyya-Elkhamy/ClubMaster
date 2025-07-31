@@ -23,7 +23,7 @@ export class StoreService {
     private readonly productModel: Model<ProductDocument>,
     @InjectModel(Cart.name)
     private readonly cartModel: Model<CartDocument>,
-  ) {}
+  ) { }
 
   async getAllCartHistory(userId: string) {
     return this.cartHistoryModel
@@ -229,4 +229,28 @@ export class StoreService {
     if (!cart) throw new NotFoundException('Cart not found');
     return cart;
   }
+
+  async searchByNameAndPrice(
+    name?: string,
+    minPrice?: number,
+    maxPrice?: number,
+  ): Promise<Product[]> {
+    const filter: any = {};
+    if (name) {
+      filter.name = { $regex: name, $options: 'i' };
+    }
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      filter.price = {};
+      if (minPrice !== undefined) {
+        filter.price.$gte = minPrice;
+      }
+      if (maxPrice !== undefined) {
+        filter.price.$lte = maxPrice;
+      }
+    }
+    return this.productModel.find(filter).exec();
+  }
+
+
+
 }

@@ -1,10 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { User } from 'src/users/users.schema';
-import * as mongoose from 'mongoose';
 
 export type MembershipTypeDocument = MembershipType & Document;
-
 @Schema({ timestamps: true })
 export class MembershipType {
   @Prop({ required: true, unique: true })
@@ -19,8 +17,8 @@ export class MembershipType {
   @Prop()
   description?: string;
 }
-export const MembershipTypeSchema =
-  SchemaFactory.createForClass(MembershipType);
+export const MembershipTypeSchema = SchemaFactory.createForClass(MembershipType);
+
 
 // UserMembership schema
 export type UserMembershipDocument = UserMembership & Document;
@@ -45,22 +43,5 @@ export class UserMembership {
   qrCode?: string | null;
 }
 
-export const UserMembershipSchema =
-  SchemaFactory.createForClass(UserMembership);
+export const UserMembershipSchema = SchemaFactory.createForClass(UserMembership);
 
-UserMembershipSchema.pre<UserMembershipDocument>('save', async function (next) {
-  if (!this.isModified('startDate') && this.endDate) return next(); // skip if not updating startDate
-
-  const membershipType = await mongoose
-    .model<MembershipTypeDocument>('MembershipType')
-    .findById(this.membershipType);
-
-  if (membershipType) {
-    const startDate = new Date(this.startDate);
-    const endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + membershipType.durationInDays);
-    this.endDate = endDate;
-  }
-
-  next();
-});

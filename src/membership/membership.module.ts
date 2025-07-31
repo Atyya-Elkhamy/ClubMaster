@@ -6,16 +6,25 @@ import { MembershipTypeService } from './membership.service';
 import {
   MembershipType,
   MembershipTypeSchema,
+  UserMembership,
+  UserMembershipSchema,
 } from './schema/membership.schema';
+import { UserMembershipHooks } from './schema/userMembership.hook';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: MembershipType.name, schema: MembershipTypeSchema },
+      { name: UserMembership.name, schema: UserMembershipSchema },
     ]),
   ],
   controllers: [MembershipTypeController],
-  providers: [MembershipTypeService],
-  exports: [MongooseModule], // ✅ This makes MembershipTypeModel usable in other modules
+  providers: [MembershipTypeService, UserMembershipHooks],
+  exports: [
+    MongooseModule.forFeature([
+      { name: MembershipType.name, schema: MembershipTypeSchema },
+      { name: UserMembership.name, schema: UserMembershipSchema },
+    ]),
+  ],
 })
-export class MembershipModule {}
+export class MembershipModule { }

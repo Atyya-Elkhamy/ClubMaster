@@ -17,9 +17,6 @@ export class Review {
 
   @Prop()
   response: string;
-
-  @Prop({ type: Types.ObjectId, ref: 'UserMembership', required: true })
-  membership: Types.ObjectId;
 }
 
 export const ReviewSchema = SchemaFactory.createForClass(Review);

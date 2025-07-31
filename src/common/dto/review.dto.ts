@@ -1,6 +1,6 @@
 // src/reviews/dto/review.dto.ts
+import { PartialType } from '@nestjs/mapped-types';
 import {
-  IsNotEmpty,
   IsOptional,
   IsString,
   IsNumber,
@@ -17,23 +17,9 @@ export class CreateReviewDto {
   @IsOptional()
   @IsString()
   comment?: string;
-
-  @IsNotEmpty()
-  @IsString()
-  membership: string; // restaurant ObjectId as string
 }
 
-export class UpdateReviewDto {
-  @IsOptional()
-  @IsNumber()
-  @Min(1)
-  @Max(5)
-  rating?: number;
-
-  @IsOptional()
-  @IsString()
-  comment?: string;
-
+export class UpdateReviewDto extends PartialType(CreateReviewDto) {
   @IsOptional()
   @IsString()
   response?: string;

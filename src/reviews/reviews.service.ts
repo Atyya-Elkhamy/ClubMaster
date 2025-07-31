@@ -9,13 +9,12 @@ import { CreateReviewDto, UpdateReviewDto } from '../common/dto/review.dto';
 export class ReviewsService {
   constructor(
     @InjectModel(Review.name) private reviewModel: Model<ReviewDocument>,
-  ) {}
+  ) { }
 
   async create(userId: string, dto: CreateReviewDto): Promise<Review> {
     return this.reviewModel.create({
       ...dto,
       customerId: new Types.ObjectId(userId),
-      membership: new Types.ObjectId(dto.membership),
     });
   }
 
@@ -32,7 +31,14 @@ export class ReviewsService {
   async findAll() {
     return this.reviewModel
       .find()
-      .populate('customerId')
-      .populate('membership');
   }
+
+  async delete(id: string): Promise<Review> {
+    const deleted = await this.reviewModel.findByIdAndDelete(id);
+    if (!deleted) {
+      throw new NotFoundException(`Review with id ${id} not found`);
+    }
+    return deleted;
+  }
+
 }
