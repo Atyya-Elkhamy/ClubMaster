@@ -6,8 +6,11 @@ import {
   IsEnum,
   Matches,
   IsMongoId,
+  IsString,
+  IsArray,
 } from 'class-validator';
 import { UserRole } from '../../users/users.schema';
+import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateUserDto {
   @IsNotEmpty({ message: 'Name is required' })
@@ -62,4 +65,39 @@ export class CreateGoogleUserDto {
   @IsOptional()
   @IsMongoId({ message: 'Invalid membership ID' })
   activeMembership?: string;
+}
+
+export class UpdateUserDto extends PartialType(CreateUserDto) {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @IsOptional()
+  @Matches(/^(010|011|012|015)\d{8}$/, {
+    message:
+      'Phone number must be 11 digits and start with 010, 011, 012, or 015',
+  })
+  phone?: string;
+
+  @IsOptional()
+  @IsArray()
+  addresses?: string[];
+}
+
+export class ChangePasswordDto {
+  @IsString()
+  oldPassword: string;
+
+  @IsString()
+  @MinLength(6)
+  newPassword: string;
+}
+
+export class AddAddressDto {
+  @IsString()
+  address: string;
 }

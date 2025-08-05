@@ -95,7 +95,7 @@ export class StoreService {
     const userObjectId = new Types.ObjectId(userId);
     const productObjectId = new Types.ObjectId(productId);
     let cart = await this.cartModel.findOne({ user: userObjectId });
-    const itemQuantity = Math.min(quantity, product.stock); // Ensure we don't exceed stock
+    const itemQuantity = Math.min(quantity, product.stock);
     if (!cart) {
       cart = new this.cartModel({
         user: userObjectId,
@@ -158,16 +158,13 @@ export class StoreService {
   }
 
   async updateCart(userId: string, dto: UpdateCartDto): Promise<Cart> {
-    // Find user's cart
     const cart = await this.cartModel.findOne({
       user: new Types.ObjectId(userId),
     });
     if (!cart) throw new NotFoundException('Cart not found');
-    // Validate items exist in request
     if (!dto.items || dto.items.length === 0) {
       throw new BadRequestException('Cart items cannot be empty');
     }
-    // Check all quantities are positive
     dto.items.forEach((item) => {
       if (item.quantity <= 0) {
         throw new BadRequestException(
@@ -175,14 +172,12 @@ export class StoreService {
         );
       }
     });
-    // Get product IDs and fetch products
     const productIds = dto.items.map(
       (item) => new Types.ObjectId(item.product),
     );
     const existingProducts = await this.productModel.find({
       _id: { $in: productIds },
     });
-    // Check all products exist
     if (existingProducts.length !== dto.items.length) {
       const missingIds = productIds
         .filter((id) => {
@@ -196,25 +191,21 @@ export class StoreService {
         `The following product IDs were not found: ${missingIds.join(', ')}`,
       );
     }
-    // Create a map of product ID to product for quick lookup
     const productMap = new Map(
       (existingProducts as IProduct[]).map((product) => [
         product._id.toString(),
         product,
       ]),
     );
-    // Validate quantities against stock
     for (const item of dto.items) {
       const product = productMap.get(item.product);
-      if (!product) continue; // This shouldn't happen due to previous check
-
+      if (!product) continue; 
       if (item.quantity > product.stock) {
         throw new BadRequestException(
           `Cannot add more than ${product.stock} items for product ${item.product}`,
         );
       }
     }
-    // Update cart items
     cart.items = dto.items.map((item) => ({
       product: new Types.ObjectId(item.product),
       quantity: item.quantity,

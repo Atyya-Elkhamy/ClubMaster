@@ -2,6 +2,17 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { User } from 'src/users/users.schema';
 
+
+export enum MembershipCategory {
+  REGULAR = 'regular',
+  VIP = 'vip',
+}
+
+export enum MembershipBillingCycle {
+  MONTHLY = 'monthly',
+  YEARLY = 'yearly',
+}
+
 export type MembershipTypeDocument = MembershipType & Document;
 @Schema({ timestamps: true })
 export class MembershipType {
@@ -16,9 +27,16 @@ export class MembershipType {
 
   @Prop()
   description?: string;
-}
-export const MembershipTypeSchema = SchemaFactory.createForClass(MembershipType);
 
+  @Prop({ enum: MembershipCategory, default: MembershipCategory.REGULAR })
+  type: MembershipCategory;
+
+  @Prop({ enum: MembershipBillingCycle, default: MembershipBillingCycle.MONTHLY })
+  billingCycle: MembershipBillingCycle;
+
+}
+
+export const MembershipTypeSchema = SchemaFactory.createForClass(MembershipType);
 
 // UserMembership schema
 export type UserMembershipDocument = UserMembership & Document;
@@ -41,6 +59,12 @@ export class UserMembership {
 
   @Prop({ type: String, default: null })
   qrCode?: string | null;
+
+  @Prop({ enum: ['pending', 'approved', 'rejected'], default: 'approved' })
+  status: 'pending' | 'approved' | 'rejected';
+
+  @Prop({ type: String, default: null })
+  vipIdNumber?: string;
 }
 
 export const UserMembershipSchema = SchemaFactory.createForClass(UserMembership);

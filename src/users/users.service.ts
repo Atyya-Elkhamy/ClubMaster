@@ -1,17 +1,18 @@
 /* eslint-disable */
-
 import {
   Injectable,
   ConflictException,
   NotFoundException,
   Logger,
   InternalServerErrorException,
+  BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { User, UserDocument } from './users.schema';
-import { CreateUserDto, CreateGoogleUserDto } from '../common/dto/users.dto';
+import { CreateUserDto, CreateGoogleUserDto, ChangePasswordDto, UpdateUserDto, AddAddressDto } from '../common/dto/users.dto';
 import { IUser } from '../common/interfaces/users.interface';
 import {
   MembershipType,
@@ -19,8 +20,10 @@ import {
   UserMembershipDocument,
 } from 'src/membership/schema/membership.schema';
 import * as QRCode from 'qrcode';
-import { Types } from 'mongoose';
 import * as crypto from 'crypto';
+import { MembershipCategory } from 'src/membership/schema/membership.schema';
+import { Types } from 'mongoose';
+import { PopulatedUserMembershipDocument } from '../common/interfaces/membership.interface';
 
 
 @Injectable()
@@ -30,7 +33,6 @@ export class UsersService {
     private readonly userModel: Model<IUser & UserDocument>,
     @InjectModel(MembershipType.name)
     private readonly membershipTypeModel: Model<MembershipType>,
-
     @InjectModel(UserMembership.name)
     private readonly userMembershipModel: Model<
       UserMembership & UserMembershipDocument
@@ -134,56 +136,74 @@ export class UsersService {
   async subscribeToMembership(
     userId: string,
     membershipTypeId: string,
-  ): Promise<{ userMembership: UserMembership; qrCodeUrl: string }> {
+    vipIdNumber?: string,
+  ): Promise<{ userMembership: UserMembership; qrCodeUrl?: string }> {
     try {
-      // Validate user and membership
       const [user, membershipType] = await Promise.all([
         this.userModel.findById(userId),
         this.membershipTypeModel.findById(membershipTypeId),
       ]);
       if (!user) throw new NotFoundException('User not found');
       if (!membershipType) throw new NotFoundException('Membership type not found');
-      // Check for existing membership
       const existing = await this.userMembershipModel.findOne({
         user: userId,
-        membershipType: membershipTypeId,
+        isActive: true,
+        endDate: { $gte: new Date() },
       });
       if (existing) {
-        throw new ConflictException('User already subscribed to this membership type');
+        throw new ConflictException('User already has an active membership');
       }
-      // Generate membership with secure QR code
       const membershipId = new Types.ObjectId();
       const startDate = new Date();
-      // Calculate endDate based on membershipType.durationInDays
       const endDate = this.calculateEndDate(startDate, membershipType.durationInDays);
-      const qrData = {
-        version: '1.0',
-        userId,
-        membershipId: membershipId.toString(),
-        membershipTypeId,
-        timestamp: startDate.toISOString(),
-        signature: await this.generateSignature(userId, membershipId.toString(), startDate.toISOString()),
-      };
-      const [qrCodeUrl, userMembership] = await Promise.all([
-        QRCode.toDataURL(JSON.stringify(qrData)),
-        this.userMembershipModel.create({
-          _id: membershipId,
-          user: userId,
-          membershipType: membershipTypeId,
-          startDate,
-          endDate,
-          qrCode: JSON.stringify(qrData),
-          isActive: true,
-        }),
-      ]);
+
+      let status: 'pending' | 'approved' = 'approved';
+      let isActive = true;
+      let qrCodeData: any = null;
+      let qrCodeUrl: string | undefined = undefined;
+
+      if (membershipType.type === MembershipCategory.VIP || vipIdNumber === undefined) {
+        status = 'pending';
+        isActive = false;
+      } else {
+        qrCodeData = {
+          version: '1.0',
+          userId,
+          membershipId: membershipId.toString(),
+          membershipTypeId,
+          timestamp: startDate.toISOString(),
+          signature: await this.generateSignature(
+            userId,
+            membershipId.toString(),
+            startDate.toISOString()
+          ),
+        };
+        qrCodeUrl = await QRCode.toDataURL(JSON.stringify(qrCodeData));
+      }
+
+      const userMembership = await this.userMembershipModel.create({
+        _id: membershipId,
+        user: userId,
+        membershipType: membershipTypeId,
+        startDate,
+        endDate,
+        isActive,
+        qrCode: qrCodeData ? JSON.stringify(qrCodeData) : null,
+        status,
+        vipIdNumber: vipIdNumber || null,
+      });
+
       return { userMembership, qrCodeUrl };
     } catch (error) {
       this.logger.error(`Membership subscription failed: ${error.message}`, error.stack);
-      throw error instanceof ConflictException || error instanceof NotFoundException
+      throw error instanceof ConflictException ||
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
         ? error
         : new InternalServerErrorException('Failed to create membership');
     }
   }
+
 
   private calculateEndDate(startDate: Date, durationInDays: number): Date {
     const endDate = new Date(startDate);
@@ -212,23 +232,26 @@ export class UsersService {
     message?: string;
   }> {
     try {
-      // 1. Parse and validate QR data structure
       const parsedData = await this.parseAndValidateQrData(qrData);
       if (!parsedData.valid) {
         return { isValid: false, message: parsedData.message };
       }
       const { userId, membershipId, timestamp, signature } = parsedData;
-      // 2. Verify signature
+      const qrCreatedTime = new Date(timestamp);
+      const now = new Date();
+      const tenMinutesInMs = 10 * 60 * 1000;
+      if (now.getTime() - qrCreatedTime.getTime() > tenMinutesInMs) {
+        return { isValid: false, message: 'QR code expired' };
+      }
       const isValidSignature = await this.verifySignature(
         userId,
         membershipId,
         timestamp,
-        signature
+        signature,
       );
       if (!isValidSignature) {
         return { isValid: false, message: 'Invalid QR signature' };
       }
-      // 4. Verify membership in database
       const membership = await this.userMembershipModel.findOne({
         _id: membershipId,
         user: userId,
@@ -237,11 +260,9 @@ export class UsersService {
       if (!membership) {
         return { isValid: false, message: 'Membership not found' };
       }
-      // 5. Check membership expiration
       if (new Date() > membership.endDate) {
         return { isValid: false, message: 'Membership expired' };
       }
-      // 6. Verify QR code matches stored data
       if (membership.qrCode !== qrData) {
         return { isValid: false, message: 'QR code mismatch' };
       }
@@ -291,14 +312,110 @@ export class UsersService {
     }
   }
 
+  async approveMembership(
+    membershipId: string,
+    approvingAdminId: string
+  ): Promise<{ userMembership: UserMembership; qrCodeUrl?: string }> {
+    try {
+      const admin = await this.userModel.findById(approvingAdminId);
+      if (!admin) {
+        throw new NotFoundException('Admin not found');
+      }
+      const userMembership = await this.userMembershipModel
+        .findById(membershipId)
+        .populate<{ membershipType: MembershipType }>('membershipType')
+        .populate<{ user: User }>('user') as unknown as PopulatedUserMembershipDocument & Document;
+      if (!userMembership) {
+        throw new NotFoundException('Membership not found');
+      }
+      if (userMembership.status !== 'pending') {
+        throw new BadRequestException('Membership is not in pending status');
+      }
+      if (userMembership.membershipType.type !== MembershipCategory.VIP) {
+        throw new BadRequestException('Only VIP memberships require approval');
+      }
+      const qrCodeData = {
+        version: '1.0',
+        userId: userMembership.user.toString(),
+        membershipId: userMembership._id.toString(),
+        membershipTypeId: userMembership.membershipType.toString(),
+        timestamp: new Date().toISOString(),
+        signature: await this.generateSignature(
+          userMembership.user.toString(),
+          userMembership._id.toString(),
+          new Date().toISOString()
+        ),
+      };
+      const qrCodeUrl = await QRCode.toDataURL(JSON.stringify(qrCodeData));
+      userMembership.status = 'approved';
+      userMembership.isActive = true;
+      userMembership.qrCode = JSON.stringify(qrCodeData);
+      await userMembership.save();
+      return { userMembership, qrCodeUrl };
+    } catch (error) {
+      this.logger.error(`Membership approval failed: ${error.message}`, error.stack);
+      throw error instanceof NotFoundException ||
+        error instanceof BadRequestException ||
+        error instanceof ForbiddenException
+        ? error
+        : new InternalServerErrorException('Failed to approve membership');
+    }
+  }
 
+  async generateTemporaryQrCode(userId: string, membershipId: string): Promise<string> {
+    console.log("the user id is ", userId)
+    console.log("the membership id is ", membershipId)
+    const membership = await this.userMembershipModel.findOne({
+      _id: membershipId,
+      user: userId,
+      isActive: true,
+      status: 'approved',
+    }).populate('membershipType');
+    console.log("the membership is ", membership)
+    if (!membership) {
+      throw new NotFoundException('Active approved membership not found');
+    }
+    const timestamp = new Date().toISOString();
+    const signature = await this.generateSignature(userId, membershipId, timestamp);
+    const qrCodeData = {
+      version: '1.0',
+      userId,
+      membershipId,
+      membershipTypeId: membership.membershipType.toString(),
+      timestamp,
+      signature,
+    };
+    return QRCode.toDataURL(JSON.stringify(qrCodeData));
+  }
 
+  async addAddress(userId: string, dto: AddAddressDto): Promise<User> {
+    const user = await this.userModel.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
+    user.addresses = user.addresses ?? [];
+    user.addresses.push(dto.address);
+    return user.save();
+  }
 
+  async updateProfile(userId: string, dto: UpdateUserDto): Promise<User> {
+    const user = await this.userModel.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
 
+    Object.assign(user, dto);
+    return user.save();
+  }
 
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<User> {
+    const user = await this.userModel.findById(userId).select('+password');
+    if (!user) throw new NotFoundException('User not found');
+    if (!user.password) throw new BadRequestException('Password not set');
 
+    const isMatch = await bcrypt.compare(dto.oldPassword, user.password);
+    if (!isMatch) throw new BadRequestException('Old password is incorrect');
 
+    const hashedNewPassword = await bcrypt.hash(dto.newPassword, 10);
+    user.password = hashedNewPassword;
 
-
+    return user.save();
+  }
 
 }

@@ -41,6 +41,12 @@ export class User {
   @Prop({ type: Types.ObjectId, ref: 'MembershipType', default: null })
   activeMembership?: Types.ObjectId;
 
+  @Prop({ type: [String], default: [] })
+  addresses?: string[];
+
+  // @Prop({ type: [Types.ObjectId], ref: 'PaymentMethod', default: [] })
+  // paymentMethods: Types.ObjectId[];
+
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

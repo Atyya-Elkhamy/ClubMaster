@@ -18,8 +18,17 @@ export class Product {
   @Prop({ default: 0, min: 0 })
   stock: number;
 
-  @Prop({ enum: ['product', 'activity'], default: 'product' })
-  type: 'product' | 'activity';
+  @Prop({ enum: ['vip', 'original'], default: 'original' })
+  type: 'vip' | 'original';
+
+  @Prop({ type: [String], default: [] })
+  pictures: string[];
+
+  @Prop({
+    enum: ['draft', 'published', 'out_of_stock', 'archived'],
+    default: 'draft'
+  })
+  status: 'draft' | 'published' | 'out_of_stock' | 'archived';
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

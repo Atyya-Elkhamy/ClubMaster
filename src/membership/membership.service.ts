@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import {
@@ -15,9 +15,13 @@ export class MembershipTypeService {
   constructor(
     @InjectModel(MembershipType.name)
     private readonly membershipTypeModel: Model<MembershipTypeDocument>,
-  ) {}
+  ) { }
 
   async create(dto: CreateMembershipTypeDto): Promise<MembershipType> {
+    const existing = await this.membershipTypeModel.findOne({ name: dto.name });
+    if (existing) {
+      throw new BadRequestException('Membership type with this name already exists');
+    }
     const membership = new this.membershipTypeModel(dto);
     return membership.save();
   }

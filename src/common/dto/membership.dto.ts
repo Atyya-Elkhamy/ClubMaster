@@ -4,15 +4,10 @@ import {
   IsString,
   IsDateString,
   IsMongoId,
+  IsEnum,
 } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
-
-export enum MembershipName {
-  VIP = 'vip',
-  STANDARD = 'standard',
-  REGULAR = 'regular',
-  BASIC = 'basic',
-}
+import { MembershipCategory, MembershipBillingCycle } from '../../membership/schema/membership.schema'; // adjust path
 
 export class CreateMembershipTypeDto {
   @IsString()
@@ -27,6 +22,12 @@ export class CreateMembershipTypeDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsEnum(MembershipCategory)
+  type: MembershipCategory;
+
+  @IsEnum(MembershipBillingCycle)
+  billingCycle: MembershipBillingCycle;
 }
 
 export class UpdateMembershipTypeDto extends PartialType(
@@ -35,16 +36,15 @@ export class UpdateMembershipTypeDto extends PartialType(
 
 export class CreateUserMembershipDto {
   @IsMongoId()
-  user: string;
-
-  @IsMongoId()
   membershipType: string;
 
+  @IsOptional()
   @IsDateString()
-  startDate: string;
-
+  startDate?: string;
+  
+  @IsOptional()
   @IsDateString()
-  endDate: string;
+  endDate?: string;
 
   @IsOptional()
   qrCode?: string;

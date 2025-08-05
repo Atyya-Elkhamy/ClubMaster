@@ -1,5 +1,6 @@
 import { Document } from 'mongoose';
 import { UserRole } from '../../users/users.schema';
+import { Request } from 'express';
 
 export interface IUser extends Document {
   _id: string;
@@ -10,4 +11,12 @@ export interface IUser extends Document {
   otp?: string;
   otpExpiresAt?: Date;
   role: UserRole;
+}
+
+export interface AuthenticatedRequest extends Request {
+  user: {
+    id: string;
+    name: string;
+    role: string;
+  };
 }
