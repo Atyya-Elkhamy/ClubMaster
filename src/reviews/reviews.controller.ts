@@ -14,25 +14,21 @@ import {
 import { ReviewsService } from './reviews.service';
 import { CreateReviewDto, UpdateReviewDto } from '../common/dto/review.dto';
 import { JwtAuthGuard } from '../common/guards/auth.guards-jwt';
-import { Request as ExpressRequest } from 'express';
-import { JwtPayload } from '../common/interfaces/auth.interface'; 
 import { RolesGuard } from 'src/common/guards/roles_guard';
 import { Roles } from 'src/common/guards/roles_guard';
 import { UserRole } from 'src/users/users.schema';
+import { AuthenticatedRequest } from 'src/common/interfaces/users.interface';
 
-interface AuthenticatedRequest extends ExpressRequest {
-  user: JwtPayload & { _id: string }; // adjust if your user has more fields
-}
 
 @Controller('reviews')
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) { }
 
-  @UseGuards(JwtAuthGuard,RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.PARTNER)
   @Post()
   create(@Request() req: AuthenticatedRequest, @Body() dto: CreateReviewDto) {
-    return this.reviewsService.create(req.user._id, dto);
+    return this.reviewsService.create(req.user.id, dto);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -41,7 +37,7 @@ export class ReviewsController {
     return this.reviewsService.update(id, dto);
   }
 
-  @UseGuards(JwtAuthGuard,RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Get()
   findAll() {

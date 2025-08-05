@@ -418,4 +418,12 @@ export class UsersService {
     return user.save();
   }
 
+  async uploadProfilePicture(userId: string, file: Express.Multer.File): Promise<User> {
+    const user = await this.userModel.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
+
+    user.picture = `/uploads/profile-pictures/${file.filename}`;
+    return user.save();
+  }
+
 }

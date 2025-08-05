@@ -11,6 +11,8 @@ import {
   Req,
   UseGuards,
   Param,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserMembershipDto } from '../common/dto/membership.dto';
@@ -20,10 +22,12 @@ import { Roles } from '../common/guards/roles_guard';
 import { UserRole } from './users.schema';
 import { AuthenticatedRequest } from '../common/interfaces/users.interface';
 import { ChangePasswordDto, AddAddressDto, UpdateUserDto } from '../common/dto/users.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { multerConfig } from 'src/common/utils/multre.config';
 
 @Controller('users')
 export class UsersController {
-  constructor(private readonly service: UsersService) {}
+  constructor(private readonly service: UsersService) { }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.PARTNER)
@@ -146,6 +150,22 @@ export class UsersController {
     return {
       message: 'Password changed successfully',
       data: user,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('upload-picture')
+  @UseInterceptors(FileInterceptor('picture', multerConfig))
+  async uploadPicture(
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const user = await this.service.uploadProfilePicture(req.user.id, file);
+    return {
+      message: 'Profile picture uploaded successfully',
+      data: {
+        picture: user.picture,
+      },
     };
   }
 }

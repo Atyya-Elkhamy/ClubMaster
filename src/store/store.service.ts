@@ -13,6 +13,9 @@ import { UpdateCartDto } from '../common/dto/userCart.dto';
 import { Types } from 'mongoose';
 import { ConflictException } from '@nestjs/common/exceptions/conflict.exception';
 import { IProduct } from 'src/common/interfaces/product.interface';
+import { join } from 'path';
+import * as fs from 'fs';
+
 
 @Injectable()
 export class StoreService {
@@ -199,7 +202,7 @@ export class StoreService {
     );
     for (const item of dto.items) {
       const product = productMap.get(item.product);
-      if (!product) continue; 
+      if (!product) continue;
       if (item.quantity > product.stock) {
         throw new BadRequestException(
           `Cannot add more than ${product.stock} items for product ${item.product}`,
@@ -242,6 +245,49 @@ export class StoreService {
     return this.productModel.find(filter).exec();
   }
 
+  async addPicture(productId: string, file: Express.Multer.File): Promise<Product> {
+    const product = await this.productModel.findById(productId);
+    if (!product) throw new NotFoundException('Product not found');
 
+    product.pictures = product.pictures ?? [];
+    const filePath = `/uploads/products/${file.filename}`;
+    product.pictures.push(filePath);
+    return product.save();
+  }
+
+  async removePicture(productId: string, picturePathOrName: string): Promise<Product> {
+    const product = await this.productModel.findById(productId);
+    if (!product) throw new NotFoundException('Product not found');
+
+    product.pictures = product.pictures ?? [];
+
+    // Resolve filename safely
+    const filename = picturePathOrName.includes('/uploads')
+      ? picturePathOrName.split('/').pop() ?? ''
+      : picturePathOrName ?? '';
+
+    if (!filename) throw new BadRequestException('Invalid filename');
+
+    const index = product.pictures.findIndex(p => p.endsWith(filename));
+    if (index === -1) throw new NotFoundException('Picture not found for this product');
+
+    // remove from array and save DB
+    product.pictures.splice(index, 1);
+    const updated = await product.save();
+
+    // delete file from disk (best-effort)
+    const fullPath = join(process.cwd(), 'uploads', 'products', filename);
+    try {
+      if (fs.existsSync(fullPath)) {
+        fs.unlinkSync(fullPath);
+      }
+    } catch (err) {
+      // don't throw; warn server logs and return updated product
+      // eslint-disable-next-line no-console
+      console.warn('Failed to delete product image file:', fullPath, err?.message ?? err);
+    }
+
+    return updated;
+  }
 
 }

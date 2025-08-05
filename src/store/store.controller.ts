@@ -8,30 +8,39 @@ import {
   Put,
   HttpCode,
   Query,
+  UseInterceptors,
+  UploadedFile,
+  Req,
+  BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import { StoreService } from './store.service';
 import { CreateProductDto, UpdateProductDto } from '../common/dto/product.dto';
 import { UpdateCartDto } from '../common/dto/userCart.dto';
 import { Roles } from 'src/common/guards/roles_guard';
-import { JwtAuthGuard } from '../common/guards/auth.guards-jwt';
-import { UseGuards, Request } from '@nestjs/common';
+import { JwtAuthGuard } from 'src/common/guards/auth.guards-jwt';
 import { RolesGuard } from 'src/common/guards/roles_guard';
 import { UserRole } from 'src/users/users.schema';
 import { Product } from './schema/product.schema';
-
+import { FileInterceptor } from '@nestjs/platform-express';
+import { productMulterConfig } from 'src/common/utils/multre.config';
+import { AuthenticatedRequest } from 'src/common/interfaces/users.interface';
 
 @Controller('store')
 export class StoreController {
-  constructor(private readonly storeService: StoreService) { }
+  constructor(private readonly storeService: StoreService) {}
 
   // ---------- 🔁 CART HISTORY ----------
+  // Get authenticated user's history (partner)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.PARTNER)
-  @Get('history/:userId')
-  getAllHistory(@Param('userId') userId: string) {
+  @Get('history')
+  getAllHistory(@Req() req: AuthenticatedRequest) {
+    const userId = req.user.id;
     return this.storeService.getAllCartHistory(userId);
   }
 
+  // Delete single history entry (partner) - kept as-is (id of history entry)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.PARTNER)
   @Delete('history/:id')
@@ -39,10 +48,12 @@ export class StoreController {
     return this.storeService.deleteCartHistoryById(id);
   }
 
+  // Delete all history for authenticated user
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.PARTNER)
-  @Delete('history/user/:userId')
-  deleteAllHistory(@Param('userId') userId: string) {
+  @Delete('history')
+  deleteAllHistory(@Req() req: AuthenticatedRequest) {
+    const userId = req.user.id;
     return this.storeService.deleteAllCartHistoryForUser(userId);
   }
 
@@ -79,46 +90,51 @@ export class StoreController {
   }
 
   // ---------- 🛒 USER CART ----------
-
+  // Add item to authenticated user's cart
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.PARTNER)
   @Post('cart/add-item')
   async addItem(
-    @Body('userId') userId: string,
+    @Req() req: AuthenticatedRequest,
     @Body('productId') productId: string,
     @Body('quantity') quantity: number = 1,
   ) {
+    const userId = req.user.id;
     return this.storeService.addItemToCart(userId, productId, quantity);
   }
 
+  // Update authenticated user's cart
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.PARTNER)
-  @Put('cart/:userId')
-  async updateCart(
-    @Param('userId') userId: string,
-    @Body() dto: UpdateCartDto,
-  ) {
+  @Put('cart')
+  async updateCart(@Req() req: AuthenticatedRequest, @Body() dto: UpdateCartDto) {
+    const userId = req.user.id;
     return this.storeService.updateCart(userId, dto);
   }
 
+  // Get authenticated user's cart
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.PARTNER)
-  @Get('cart/:userId')
-  async getCart(@Param('userId') userId: string) {
+  @Get('cart')
+  async getCart(@Req() req: AuthenticatedRequest) {
+    const userId = req.user.id;
     return this.storeService.getCartByUserId(userId);
   }
 
+  // Remove item from authenticated user's cart
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.PARTNER)
   @Delete('cart/remove-item')
-  @HttpCode(204) // No Content (successful deletion)
+  @HttpCode(204) // No Content
   async removeItem(
-    @Body('userId') userId: string,
+    @Req() req: AuthenticatedRequest,
     @Body('productId') productId: string,
   ) {
+    const userId = req.user.id;
     await this.storeService.removeItemFromCart(userId, productId);
   }
 
+  // Search products (public)
   @Get('search')
   async searchProducts(
     @Query('name') name?: string,
@@ -130,5 +146,46 @@ export class StoreController {
     return this.storeService.searchByNameAndPrice(name, min, max);
   }
 
+  // ---------- 🖼 PRODUCT PICTURES ----------
+  @UseGuards(JwtAuthGuard) // optional: restrict to sellers/admins as needed
+  @Post(':id/pictures')
+  @UseInterceptors(FileInterceptor('picture', productMulterConfig))
+  async uploadPicture(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (!file) throw new BadRequestException('No file provided');
 
+    // Optional: enforce that the authenticated user has permission to modify the product.
+    // Example (if storeService.hasOwnership exists):
+    // const userId = req.user.id;
+    // await this.storeService.ensureProductOwner(id, userId);
+
+    const product = await this.storeService.addPicture(id, file);
+    return {
+      message: 'Picture uploaded',
+      data: product,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id/pictures')
+  async deletePicture(
+    @Param('id') id: string,
+    @Query('filename') filename: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (!filename) throw new BadRequestException('filename query parameter is required');
+
+    // Optional ownership check:
+    // const userId = req.user.id;
+    // await this.storeService.ensureProductOwner(id, userId);
+
+    const product = await this.storeService.removePicture(id, filename);
+    return {
+      message: 'Picture removed',
+      data: product,
+    };
+  }
 }
