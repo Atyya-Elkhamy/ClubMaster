@@ -9,9 +9,9 @@ import {
   UserMembership,
   UserMembershipSchema,
 } from './schema/membership.schema';
-import { UserMembershipHooks } from './schema/userMembership.hook';
 import { ScheduleModule } from '@nestjs/schedule';
 import { MembershipExpirationService } from './expiration.service';
+import { NotificationsModule } from 'src/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -20,9 +20,10 @@ import { MembershipExpirationService } from './expiration.service';
       { name: UserMembership.name, schema: UserMembershipSchema },
     ]),
     ScheduleModule.forRoot(),
+    NotificationsModule,
   ],
   controllers: [MembershipTypeController],
-  providers: [MembershipTypeService, UserMembershipHooks, MembershipExpirationService],
+  providers: [MembershipTypeService, MembershipExpirationService],
   exports: [
     MongooseModule.forFeature([
       { name: MembershipType.name, schema: MembershipTypeSchema },

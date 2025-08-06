@@ -147,7 +147,7 @@ export class StoreController {
   }
 
   // ---------- 🖼 PRODUCT PICTURES ----------
-  @UseGuards(JwtAuthGuard) // optional: restrict to sellers/admins as needed
+  @UseGuards(JwtAuthGuard) 
   @Post(':id/pictures')
   @UseInterceptors(FileInterceptor('picture', productMulterConfig))
   async uploadPicture(
@@ -156,12 +156,6 @@ export class StoreController {
     @Req() req: AuthenticatedRequest,
   ) {
     if (!file) throw new BadRequestException('No file provided');
-
-    // Optional: enforce that the authenticated user has permission to modify the product.
-    // Example (if storeService.hasOwnership exists):
-    // const userId = req.user.id;
-    // await this.storeService.ensureProductOwner(id, userId);
-
     const product = await this.storeService.addPicture(id, file);
     return {
       message: 'Picture uploaded',
@@ -177,11 +171,6 @@ export class StoreController {
     @Req() req: AuthenticatedRequest,
   ) {
     if (!filename) throw new BadRequestException('filename query parameter is required');
-
-    // Optional ownership check:
-    // const userId = req.user.id;
-    // await this.storeService.ensureProductOwner(id, userId);
-
     const product = await this.storeService.removePicture(id, filename);
     return {
       message: 'Picture removed',

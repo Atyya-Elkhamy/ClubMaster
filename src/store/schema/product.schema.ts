@@ -32,3 +32,15 @@ export class Product {
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);
+
+ProductSchema.pre('save', function (next) {
+  const product = this as ProductDocument;
+  if (product.isModified('stock')) {
+    if (product.stock === 0) {
+      product.status = 'out_of_stock';
+    } else if (product.stock > 0 && product.status === 'out_of_stock') {
+      product.status = 'published';
+    }
+  }
+  next();
+});

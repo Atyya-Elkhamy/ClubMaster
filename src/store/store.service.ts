@@ -154,6 +154,14 @@ export class StoreService {
       throw new NotFoundException('Product not found in cart');
     }
     const updatedCart = await cart.save();
+    const removedItem = cart.items.find((item) =>
+      item.product._id.equals(productObjectId),
+    );
+    if (removedItem) {
+      await this.productModel.findByIdAndUpdate(productObjectId, {
+        $inc: { stock: removedItem.quantity },
+      });
+    }
     return {
       message: 'Product successfully removed from cart',
       cart: updatedCart,

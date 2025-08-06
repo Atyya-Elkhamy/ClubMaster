@@ -135,18 +135,17 @@ export class AuthService {
     await this.mailService.sendOTP(dto.email, otp);
   }
 
-  async verifyOtp(dto: VerifyOtpDto): Promise<void> {
-    const user = await this.usersService.findOne(dto.email);
-    if (!user || user.otp !== dto.otp)
-      throw new UnauthorizedException('Invalid OTP');
-    if (user.otpExpiresAt && user.otpExpiresAt < new Date()) {
-      throw new UnauthorizedException('OTP expired');
-    }
-
-    user.otp = undefined;
-    user.otpExpiresAt = undefined;
-    await user.save();
-  }
+  // async verifyOtp(dto: VerifyOtpDto): Promise<void> {
+  //   const user = await this.usersService.findOne(dto.email);
+  //   if (!user || user.otp !== dto.otp)
+  //     throw new UnauthorizedException('Invalid OTP');
+  //   if (user.otpExpiresAt && user.otpExpiresAt < new Date()) {
+  //     throw new UnauthorizedException('OTP expired');
+  //   }
+  //   user.otp = undefined;
+  //   user.otpExpiresAt = undefined;
+  //   await user.save();
+  // }
 
   async resetPassword(dto: ResetPasswordDto): Promise<void> {
     const user = await this.usersService.findOne(dto.email);
@@ -155,7 +154,6 @@ export class AuthService {
     if (user.otpExpiresAt && user.otpExpiresAt < new Date()) {
       throw new UnauthorizedException('OTP expired');
     }
-
     user.password = await bcrypt.hash(dto.newPassword, 10);
     user.otp = undefined;
     user.otpExpiresAt = undefined;

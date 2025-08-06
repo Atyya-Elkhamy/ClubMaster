@@ -33,7 +33,7 @@ export class AuthController {
   constructor(
     private readonly usersService: UsersService,
     private readonly authService: AuthService,
-  ) {}
+  ) { }
 
   @Post('register')
   async register(@Body() createUserDto: CreateUserDto) {
@@ -121,10 +121,10 @@ export class AuthController {
     return this.authService.sendOtp(dto);
   }
 
-  @Post('verify-otp')
-  verifyOtp(@Body() dto: VerifyOtpDto) {
-    return this.authService.verifyOtp(dto);
-  }
+  // @Post('verify-otp')
+  // verifyOtp(@Body() dto: VerifyOtpDto) {
+  //   return this.authService.verifyOtp(dto);
+  // }
 
   @Post('reset-password')
   resetPassword(@Body() dto: ResetPasswordDto) {
