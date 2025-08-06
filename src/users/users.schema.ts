@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { MembershipType } from '../membership/schema/membership.schema';
 
 export enum UserRole {
   PARTNER = 'partner',
@@ -44,9 +43,17 @@ export class User {
   @Prop({ type: [String], default: [] })
   addresses?: string[];
 
+  @Prop({ type: Number, required: false, unique: true, sparse: true })
+  vipIdNumber?: number;
+
+  @Prop({ default: false })
+  vipVerified?: boolean;
+
+  @Prop({ default: false })
+  VipRequest?: boolean;
+
   // @Prop({ type: [Types.ObjectId], ref: 'PaymentMethod', default: [] })
   // paymentMethods: Types.ObjectId[];
-
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

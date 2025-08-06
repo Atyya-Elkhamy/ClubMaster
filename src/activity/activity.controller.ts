@@ -92,7 +92,7 @@ export class ActivityBookingController {
     };
   }
 
-  @UseGuards(JwtAuthGuard) // optional
+  @UseGuards(JwtAuthGuard)
   @Delete('activities/:id/pictures')
   async deleteActivityPicture(
     @Param('id') id: string,

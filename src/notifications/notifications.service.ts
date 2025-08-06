@@ -16,11 +16,9 @@ export class NotificationService {
     ) { }
 
     async create(dto: CreateNotificationDto): Promise<Notification> {
-        // Validate user field if exists
         if (!dto.user || !isValidObjectId(dto.user)) {
             throw new BadRequestException('Invalid or missing user ID.');
         }
-
         return await this.notificationModel.create(dto);
     }
 
@@ -28,7 +26,6 @@ export class NotificationService {
         if (!isValidObjectId(userId)) {
             throw new BadRequestException('Invalid user ID.');
         }
-
         return this.notificationModel
             .find({ user: userId })
             .sort({ createdAt: -1 })
@@ -39,13 +36,11 @@ export class NotificationService {
         if (!isValidObjectId(notificationId)) {
             throw new BadRequestException('Invalid notification ID.');
         }
-
         const updated = await this.notificationModel.findByIdAndUpdate(
             notificationId,
             { isRead: true },
             { new: true },
         );
-
         if (!updated) {
             throw new NotFoundException('Notification not found.');
         }
@@ -55,11 +50,9 @@ export class NotificationService {
         if (!isValidObjectId(notificationId)) {
             throw new BadRequestException('Invalid notification ID.');
         }
-
         const deleted = await this.notificationModel.findByIdAndDelete(
             notificationId,
         );
-
         if (!deleted) {
             throw new NotFoundException('Notification not found.');
         }
@@ -69,10 +62,17 @@ export class NotificationService {
         if (!isValidObjectId(userId)) {
             throw new BadRequestException('Invalid user ID.');
         }
-
         const result = await this.notificationModel.deleteMany({ user: userId });
         if (result.deletedCount === 0) {
             throw new NotFoundException('No notifications found for user.');
         }
+    }
+
+    async notifyMembershipExpired(userId: string, membershipId: string): Promise<void> {
+        const message = `Your membership (ID: ${membershipId}) has expired. Please renew to continue enjoying the service.`;
+        await this.create({
+            user: userId,
+            message,
+        });
     }
 }

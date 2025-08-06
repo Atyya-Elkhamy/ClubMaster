@@ -13,6 +13,7 @@ import {
   Param,
   UploadedFile,
   UseInterceptors,
+  Query,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserMembershipDto } from '../common/dto/membership.dto';
@@ -21,9 +22,10 @@ import { RolesGuard } from '../common/guards/roles_guard';
 import { Roles } from '../common/guards/roles_guard';
 import { UserRole } from './users.schema';
 import { AuthenticatedRequest } from '../common/interfaces/users.interface';
-import { ChangePasswordDto, AddAddressDto, UpdateUserDto } from '../common/dto/users.dto';
+import { ChangePasswordDto, AddAddressDto, UpdateUserDto, AddVipIdDto } from '../common/dto/users.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { multerConfig } from 'src/common/utils/multre.config';
+import { UserMembership } from 'src/membership/schema/membership.schema';
 
 @Controller('users')
 export class UsersController {
@@ -71,6 +73,14 @@ export class UsersController {
     };
   }
 
+  @Get('membership-status')
+  async getMemberships(@Query('status') status: 'active' | 'inactive'): Promise<UserMembership[]> {
+    if (!status || !['active', 'inactive'].includes(status)) {
+      throw new BadRequestException('Invalid status. Use "active" or "inactive".');
+    }
+    return this.service.getMembershipsByStatus(status);
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.PARTNER)
   @Get('')
@@ -96,13 +106,13 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Roles(UserRole.ADMIN)
-  @Put(':membershipId/approve')
+  @Put(':userId/approve')
   async approveMembership(
-    @Param('membershipId') membershipId: string,
+    @Param('userId') userId: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    const result = await this.service.approveMembership(
-      membershipId,
+    const result = await this.service.approveVipRequest(
+      userId,
       req.user.id,
     );
     return {
@@ -111,7 +121,7 @@ export class UsersController {
     };
   }
 
-  // ✅ Add address for authenticated user
+  // Add address for authenticated user
   @UseGuards(JwtAuthGuard)
   @Post('address')
   async addAddress(
@@ -125,7 +135,7 @@ export class UsersController {
     };
   }
 
-  // ✅ Update profile info (name, email, phone, etc.)
+  // Update profile info (name, email, phone, etc.)
   @UseGuards(JwtAuthGuard)
   @Patch('profile')
   async updateUserProfile(
@@ -139,7 +149,7 @@ export class UsersController {
     };
   }
 
-  // ✅ Change password for logged-in user
+  // Change password for logged-in user
   @UseGuards(JwtAuthGuard)
   @Post('change-password')
   async changePassword(
@@ -167,5 +177,12 @@ export class UsersController {
         picture: user.picture,
       },
     };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('vip-request')
+  async submitVipRequest(@Req() req: AuthenticatedRequest, @Body() dto: AddVipIdDto) {
+    const userId = req.user.id;
+    return this.service.sendRequestVipApproval(userId, dto.vipIdNumber);
   }
 }

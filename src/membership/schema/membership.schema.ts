@@ -38,7 +38,7 @@ export class MembershipType {
 
 export const MembershipTypeSchema = SchemaFactory.createForClass(MembershipType);
 
-// UserMembership schema
+
 export type UserMembershipDocument = UserMembership & Document;
 @Schema({ timestamps: true })
 export class UserMembership {
@@ -63,8 +63,6 @@ export class UserMembership {
   @Prop({ enum: ['pending', 'approved', 'rejected'], default: 'approved' })
   status: 'pending' | 'approved' | 'rejected';
 
-  @Prop({ type: String, default: null })
-  vipIdNumber?: string;
 }
 
 export const UserMembershipSchema = SchemaFactory.createForClass(UserMembership);

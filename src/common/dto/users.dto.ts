@@ -8,6 +8,8 @@ import {
   IsMongoId,
   IsString,
   IsArray,
+  Length,
+  IsInt,
 } from 'class-validator';
 import { UserRole } from '../../users/users.schema';
 import { PartialType } from '@nestjs/mapped-types';
@@ -100,4 +102,10 @@ export class ChangePasswordDto {
 export class AddAddressDto {
   @IsString()
   address: string;
+}
+
+export class AddVipIdDto {
+  @IsNotEmpty({ message: 'VIP ID number is required' })
+  @IsInt({ message: 'VIP ID number must be an integer' })
+  vipIdNumber: number;
 }

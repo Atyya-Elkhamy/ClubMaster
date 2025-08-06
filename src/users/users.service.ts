@@ -123,6 +123,20 @@ export class UsersService {
       .populate('membershipType');
   }
 
+  async getMembershipsByStatus(status: 'active' | 'inactive'): Promise<UserMembership[]> {
+    const now = new Date();
+
+    const filter =
+      status === 'active'
+        ? { isActive: true, endDate: { $gte: now } }
+        : { $or: [{ isActive: false }, { endDate: { $lt: now } }] };
+
+    return this.userMembershipModel
+      .find(filter)
+      .populate('user')
+      .populate('membershipType')
+      .exec();
+  }
 
   private validateQrConfig(): void {
     if (!process.env.QR_SIGNATURE_SECRET) {
@@ -133,77 +147,54 @@ export class UsersService {
     }
   }
 
-  async subscribeToMembership(
-    userId: string,
-    membershipTypeId: string,
-    vipIdNumber?: string,
-  ): Promise<{ userMembership: UserMembership; qrCodeUrl?: string }> {
-    try {
-      const [user, membershipType] = await Promise.all([
-        this.userModel.findById(userId),
-        this.membershipTypeModel.findById(membershipTypeId),
-      ]);
-      if (!user) throw new NotFoundException('User not found');
-      if (!membershipType) throw new NotFoundException('Membership type not found');
-      const existing = await this.userMembershipModel.findOne({
-        user: userId,
-        isActive: true,
-        endDate: { $gte: new Date() },
-      });
-      if (existing) {
-        throw new ConflictException('User already has an active membership');
+  async subscribeToMembership(userId: string, membershipTypeId: string): Promise<{ userMembership?: UserMembershipDocument; qrCodeUrl?: string; message: string }> {
+    const [user, membershipType] = await Promise.all([
+      this.userModel.findById(userId),
+      this.membershipTypeModel.findById(membershipTypeId),
+    ]);
+    if (!user) throw new NotFoundException('User not found');
+    if (!membershipType) throw new NotFoundException('Membership type not found');
+    const existing = await this.userMembershipModel.findOne({
+      user: userId,
+      isActive: true,
+      endDate: { $gte: new Date() },
+    });
+    if (existing) throw new ConflictException('User already has an active membership');
+    if (membershipType.type === MembershipCategory.VIP) {
+      if (!user.vipIdNumber || !user.vipVerified) {
+        user.VipRequest = true;
+        throw new BadRequestException('VIP membership requires a verified VIP ID. Please submit your VIP ID and wait for admin approval.');
       }
-      const membershipId = new Types.ObjectId();
-      const startDate = new Date();
-      const endDate = this.calculateEndDate(startDate, membershipType.durationInDays);
-
-      let status: 'pending' | 'approved' = 'approved';
-      let isActive = true;
-      let qrCodeData: any = null;
-      let qrCodeUrl: string | undefined = undefined;
-
-      if (membershipType.type === MembershipCategory.VIP || vipIdNumber === undefined) {
-        status = 'pending';
-        isActive = false;
-      } else {
-        qrCodeData = {
-          version: '1.0',
-          userId,
-          membershipId: membershipId.toString(),
-          membershipTypeId,
-          timestamp: startDate.toISOString(),
-          signature: await this.generateSignature(
-            userId,
-            membershipId.toString(),
-            startDate.toISOString()
-          ),
-        };
-        qrCodeUrl = await QRCode.toDataURL(JSON.stringify(qrCodeData));
-      }
-
-      const userMembership = await this.userMembershipModel.create({
-        _id: membershipId,
-        user: userId,
-        membershipType: membershipTypeId,
-        startDate,
-        endDate,
-        isActive,
-        qrCode: qrCodeData ? JSON.stringify(qrCodeData) : null,
-        status,
-        vipIdNumber: vipIdNumber || null,
-      });
-
-      return { userMembership, qrCodeUrl };
-    } catch (error) {
-      this.logger.error(`Membership subscription failed: ${error.message}`, error.stack);
-      throw error instanceof ConflictException ||
-        error instanceof NotFoundException ||
-        error instanceof BadRequestException
-        ? error
-        : new InternalServerErrorException('Failed to create membership');
     }
+    const startDate = new Date();
+    const endDate = this.calculateEndDate(startDate, membershipType.durationInDays);
+    const membershipId = new Types.ObjectId();
+    let qrCodeData: Record<string, any> | null = null;
+    let qrCodeUrl: string | undefined = undefined;
+    const timestamp = startDate.toISOString();
+    const signature = await this.generateSignature(userId, membershipId.toString(), timestamp);
+    qrCodeData = {
+      version: '1.0',
+      userId,
+      membershipId: membershipId.toString(),
+      membershipTypeId,
+      timestamp,
+      signature,
+    };
+    qrCodeUrl = await QRCode.toDataURL(JSON.stringify(qrCodeData));
+    const userMembership = await this.userMembershipModel.create({
+      _id: membershipId,
+      user: userId,
+      membershipType: membershipTypeId,
+      startDate,
+      endDate,
+      isActive: true,
+      qrCode: JSON.stringify(qrCodeData),
+      status: 'approved',
+      vipIdNumber: user.vipIdNumber || null,
+    });
+    return { userMembership, qrCodeUrl, message: 'Membership created and activated' };
   }
-
 
   private calculateEndDate(startDate: Date, durationInDays: number): Date {
     const endDate = new Date(startDate);
@@ -312,55 +303,30 @@ export class UsersService {
     }
   }
 
-  async approveMembership(
-    membershipId: string,
+  async approveVipRequest(
+    userId: string,
     approvingAdminId: string
-  ): Promise<{ userMembership: UserMembership; qrCodeUrl?: string }> {
-    try {
-      const admin = await this.userModel.findById(approvingAdminId);
-      if (!admin) {
-        throw new NotFoundException('Admin not found');
-      }
-      const userMembership = await this.userMembershipModel
-        .findById(membershipId)
-        .populate<{ membershipType: MembershipType }>('membershipType')
-        .populate<{ user: User }>('user') as unknown as PopulatedUserMembershipDocument & Document;
-      if (!userMembership) {
-        throw new NotFoundException('Membership not found');
-      }
-      if (userMembership.status !== 'pending') {
-        throw new BadRequestException('Membership is not in pending status');
-      }
-      if (userMembership.membershipType.type !== MembershipCategory.VIP) {
-        throw new BadRequestException('Only VIP memberships require approval');
-      }
-      const qrCodeData = {
-        version: '1.0',
-        userId: userMembership.user.toString(),
-        membershipId: userMembership._id.toString(),
-        membershipTypeId: userMembership.membershipType.toString(),
-        timestamp: new Date().toISOString(),
-        signature: await this.generateSignature(
-          userMembership.user.toString(),
-          userMembership._id.toString(),
-          new Date().toISOString()
-        ),
-      };
-      const qrCodeUrl = await QRCode.toDataURL(JSON.stringify(qrCodeData));
-      userMembership.status = 'approved';
-      userMembership.isActive = true;
-      userMembership.qrCode = JSON.stringify(qrCodeData);
-      await userMembership.save();
-      return { userMembership, qrCodeUrl };
-    } catch (error) {
-      this.logger.error(`Membership approval failed: ${error.message}`, error.stack);
-      throw error instanceof NotFoundException ||
-        error instanceof BadRequestException ||
-        error instanceof ForbiddenException
-        ? error
-        : new InternalServerErrorException('Failed to approve membership');
+  ): Promise<{ message: string }> {
+    const admin = await this.userModel.findById(approvingAdminId);
+    if (!admin) {
+      throw new NotFoundException('Admin not found');
     }
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (!user.vipIdNumber) {
+      throw new BadRequestException('User has no VIP ID number submitted');
+    }
+    if (user.vipVerified) {
+      throw new BadRequestException('User VIP status is already approved');
+    }
+    user.vipVerified = true;
+    user.VipRequest = false;
+    await user.save();
+    return { message: 'User VIP status approved successfully' };
   }
+
 
   async generateTemporaryQrCode(userId: string, membershipId: string): Promise<string> {
     console.log("the user id is ", userId)
@@ -395,6 +361,25 @@ export class UsersService {
     user.addresses.push(dto.address);
     return user.save();
   }
+
+  async sendRequestVipApproval(userId: string, vipIdNumber: number): Promise<{ message: string }> {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (user.vipVerified) {
+      throw new BadRequestException('You are already a verified VIP member');
+    }
+    if (user.VipRequest) {
+      throw new BadRequestException('VIP approval request already submitted');
+    }
+    user.vipIdNumber = vipIdNumber;
+    user.VipRequest = true;
+    user.vipVerified = false;
+    await user.save();
+    return { message: 'VIP approval request submitted successfully' };
+  }
+
 
   async updateProfile(userId: string, dto: UpdateUserDto): Promise<User> {
     const user = await this.userModel.findById(userId);
