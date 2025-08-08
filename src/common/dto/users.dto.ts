@@ -69,7 +69,7 @@ export class CreateGoogleUserDto {
   activeMembership?: string;
 }
 
-export class UpdateUserDto extends PartialType(CreateUserDto) {
+export class UpdateUserDto {
   @IsOptional()
   @IsString()
   name?: string;
@@ -86,8 +86,8 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   phone?: string;
 
   @IsOptional()
-  @IsArray()
-  addresses?: string[];
+  @IsString()
+  addresses?: string;
 }
 
 export class ChangePasswordDto {

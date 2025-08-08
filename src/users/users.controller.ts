@@ -14,6 +14,7 @@ import {
   UploadedFile,
   UseInterceptors,
   Query,
+  NotFoundException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserMembershipDto } from '../common/dto/membership.dto';
@@ -26,6 +27,7 @@ import { ChangePasswordDto, AddAddressDto, UpdateUserDto, AddVipIdDto } from '..
 import { FileInterceptor } from '@nestjs/platform-express';
 import { multerConfig } from 'src/common/utils/multre.config';
 import { UserMembership } from 'src/membership/schema/membership.schema';
+import { isValidObjectId } from 'mongoose';
 
 @Controller('users')
 export class UsersController {
@@ -121,6 +123,23 @@ export class UsersController {
     };
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  async getMyProfile(@Req() req: AuthenticatedRequest) {
+    const userId = req.user.id;
+    if (!isValidObjectId(userId)) {
+      throw new BadRequestException('Invalid user ID format');
+    }
+    const user = await this.service.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return {
+      message: 'User profile retrieved successfully',
+      data: user,
+    };
+  }
+
   // Add address for authenticated user
   @UseGuards(JwtAuthGuard)
   @Post('address')
@@ -128,6 +147,7 @@ export class UsersController {
     @Req() req: AuthenticatedRequest,
     @Body() dto: AddAddressDto,
   ) {
+    console.log("the user id is ",req.user.id)
     const user = await this.service.addAddress(req.user.id, dto);
     return {
       message: 'Address added successfully',
@@ -137,7 +157,7 @@ export class UsersController {
 
   // Update profile info (name, email, phone, etc.)
   @UseGuards(JwtAuthGuard)
-  @Patch('profile')
+  @Put('profile')
   async updateUserProfile(
     @Req() req: AuthenticatedRequest,
     @Body() dto: UpdateUserDto,

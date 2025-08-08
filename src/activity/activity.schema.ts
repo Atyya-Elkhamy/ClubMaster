@@ -5,7 +5,7 @@ export type ActivityDocument = Activity & Document;
 
 @Schema({ timestamps: true })
 export class Activity {
-    @Prop({ required: true })
+    @Prop({ required: true, unique: true })
     name: string;
 
     @Prop({ required: true })
@@ -25,6 +25,9 @@ export class Activity {
 
     @Prop({ required: true })
     endTime: string;
+
+    @Prop({ required: true })
+    pricePerOne: number;
 
     @Prop({ required: true, enum: ['athlete', 'other'] })
     category: 'athlete' | 'other';
@@ -53,3 +56,4 @@ export class Booking {
 }
 
 export const BookingSchema = SchemaFactory.createForClass(Booking);
+BookingSchema.index({ user: 1, activity: 1 }, { unique: true });

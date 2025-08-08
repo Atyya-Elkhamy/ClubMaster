@@ -27,6 +27,9 @@ export class CreateActivityDto {
   @IsNumber()
   numberOfSeats: number;
 
+  @IsNumber()
+  pricePerOne: number;
+
   @IsString()
   startTime: string;
 
@@ -46,9 +49,6 @@ export class UpdateActivityDto extends PartialType(CreateActivityDto) {}
 
 
 export class CreateBookingDto {
-  @IsMongoId()
-  user: string;
-
   @IsMongoId()
   activity: string;
 

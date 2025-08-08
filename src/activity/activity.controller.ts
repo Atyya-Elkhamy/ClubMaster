@@ -5,7 +5,8 @@ import {
   UploadedFile,
   Req,
   BadRequestException,
-  Query
+  Query,
+  Put
 } from '@nestjs/common';
 import { ActivityBookingService } from './activity.service';
 import {
@@ -28,7 +29,7 @@ export class ActivityBookingController {
     return this.service.createActivity(dto);
   }
 
-  @Patch('activities/:id')
+  @Put('activities/:id')
   updateActivity(@Param('id') id: string, @Body() dto: UpdateActivityDto) {
     return this.service.updateActivity(id, dto);
   }
@@ -49,9 +50,11 @@ export class ActivityBookingController {
   }
 
   // Booking routes
+  @UseGuards(JwtAuthGuard)
   @Post('bookings')
-  createBooking(@Body() dto: CreateBookingDto) {
-    return this.service.createBooking(dto);
+  createBooking(@Req() req: AuthenticatedRequest, @Body() dto: CreateBookingDto) {
+    const userId = req.user.id
+    return this.service.createBooking(userId, dto);
   }
 
   @Patch('bookings/:id')
@@ -69,12 +72,13 @@ export class ActivityBookingController {
     return this.service.getBookingById(id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('activities/:id/bookings')
   getBookingsForActivity(@Param('id') activityId: string) {
     return this.service.getBookingsForActivity(activityId);
   }
 
-  @UseGuards(JwtAuthGuard) 
+  @UseGuards(JwtAuthGuard)
   @Post('activities/:id/pictures')
   @UseInterceptors(FileInterceptor('picture', activityMulterConfig))
   async uploadActivityPicture(

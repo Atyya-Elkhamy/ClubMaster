@@ -10,6 +10,7 @@ import {
   Get,
   Delete,
   Put,
+  Req,
 } from '@nestjs/common';
 import { ReviewsService } from './reviews.service';
 import { CreateReviewDto, UpdateReviewDto } from '../common/dto/review.dto';
@@ -31,10 +32,16 @@ export class ReviewsController {
     return this.reviewsService.create(req.user.id, dto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.PARTNER)
   @Put(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateReviewDto) {
-    return this.reviewsService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: UpdateReviewDto
+  ) {
+    const userId = req.user.id;
+    return this.reviewsService.update(id, userId, dto);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -44,10 +51,20 @@ export class ReviewsController {
     return this.reviewsService.findAll();
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Delete(':id')
   delete(@Param('id') id: string) {
     return this.reviewsService.delete(id);
   }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.PARTNER)
+  @Get('user')
+  findByUser(@Req() req: AuthenticatedRequest) {
+    const userId = req.user.id;
+    return this.reviewsService.findByUser(userId);
+  }
+
 
 }

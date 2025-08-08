@@ -7,6 +7,7 @@ import {
   InternalServerErrorException,
   BadRequestException,
   ForbiddenException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -355,6 +356,9 @@ export class UsersService {
   }
 
   async addAddress(userId: string, dto: AddAddressDto): Promise<User> {
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new BadRequestException('Invalid user ID format');
+    }
     const user = await this.userModel.findById(userId);
     if (!user) throw new NotFoundException('User not found');
     user.addresses = user.addresses ?? [];
@@ -383,11 +387,36 @@ export class UsersService {
 
   async updateProfile(userId: string, dto: UpdateUserDto): Promise<User> {
     const user = await this.userModel.findById(userId);
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (dto.email && dto.email !== user.email) {
+      const existingEmail = await this.userModel.findOne({ email: dto.email });
+      if (existingEmail) {
+        throw new BadRequestException('Email is already in use');
+      }
+      user.email = dto.email;
+    }
+    if (dto.phone && dto.phone !== user.phone) {
+      const existingPhone = await this.userModel.findOne({ phone: dto.phone });
+      if (existingPhone) {
+        throw new BadRequestException('Phone number is already in use');
+      }
+      user.phone = dto.phone;
+    }
+    if (dto.name) {
+      user.name = dto.name;
+    }
+    if (dto.addresses) {
+      if (!Array.isArray(user.addresses)) {
+        user.addresses = [];
+      }
+      user.addresses.push(dto.addresses);
+    }
 
-    Object.assign(user, dto);
-    return user.save();
+    return await user.save();
   }
+
 
   async changePassword(userId: string, dto: ChangePasswordDto): Promise<User> {
     const user = await this.userModel.findById(userId).select('+password');
@@ -404,6 +433,9 @@ export class UsersService {
   }
 
   async uploadProfilePicture(userId: string, file: Express.Multer.File): Promise<User> {
+    if (!file) {
+      throw new BadRequestException('No file uploaded or file type not allowed');
+    }
     const user = await this.userModel.findById(userId);
     if (!user) throw new NotFoundException('User not found');
 
